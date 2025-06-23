@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ekstraktor Data Kartu Keluarga (KK)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .upload-box {
+            border: 2px dashed #d1d5db;
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+        }
+        .upload-box:hover {
+            background-color: #f9fafb;
+            border-color: #4f46e5;
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.2);
+        }
+        .loader {
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #results-table th, #results-table td {
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0.75rem;
+            white-space: nowrap;
+        }
+        /* Animasi untuk ikon Dokumen */
+        .scan-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            border-radius: 50%;
+            background-color: rgba(79, 70, 229, 0.9);
+            box-shadow: 0 0 10px rgba(79, 70, 229, 1);
+            animation: scan 3.5s infinite cubic-bezier(0.65, 0.05, 0.36, 1);
+        }
+        @keyframes scan {
+            0% { top: 8%; opacity: 0.5; }
+            50% { top: 88%; opacity: 1; }
+            100% { top: 8%; opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Ekstraktor KK by adminpgls</h1>
+            <p class="mt-2 text-md sm:text-lg text-gray-600">Unggah foto KK untuk mengekstrak data Kepala Keluarga dan Anggota Keluarga.</p>
+        </header>
+
+        <main>
+            <div class="bg-white rounded-xl shadow-lg p-6 sm:p-8">
+                <!-- Upload Area -->
+                <div id="upload-container">
+                    <div id="upload-area">
+                        <label for="file-upload" class="upload-box w-full p-8 sm:p-12 rounded-lg flex flex-col items-center justify-center cursor-pointer text-center">
+                             <!-- New Animated KK Icon -->
+                            <div class="relative w-40 h-auto mb-4 text-gray-400">
+                                <svg viewBox="0 0 140 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <!-- Main Card -->
+                                    <rect x="1" y="1" width="138" height="98" rx="6" stroke="currentColor" stroke-width="2"/>
+                                    <!-- Garuda Icon Placeholder -->
+                                    <path d="M65 8 L75 8 L75 18 L70 14 L65 18 Z" fill="#e5e7eb"/>
+                                    <path d="M68 9 L72 9 L72 13 L70 11 L68 13 Z" fill="currentColor"/>
+                                    <!-- Header Text -->
+                                    <rect x="35" y="24" width="70" height="4" rx="2" fill="#e5e7eb"/>
+                                    <!-- Table structure -->
+                                    <rect x="10" y="35" width="120" height="2" rx="1" fill="#e5e7eb"/>
+                                    <rect x="10" y="42" width="120" height="15" rx="2" fill="#f3f4f6"/>
+                                    <rect x="10" y="62" width="120" height="2" rx="1" fill="#e5e7eb"/>
+                                    <rect x="10" y="69" width="120" height="15" rx="2" fill="#f3f4f6"/>
+                                    <!-- Vertical lines -->
+                                    <rect x="30" y="35" width="2" height="49" fill="#e5e7eb"/>
+                                    <rect x="70" y="35" width="2" height="49" fill="#e5e7eb"/>
+                                    <rect x="110" y="35" width="2" height="49" fill="#e5e7eb"/>
+                                </svg>
+                                <div class="scan-line"></div>
+                            </div>
+                            <p class="font-semibold text-gray-700">Klik untuk mengunggah KK atau jatuhkan gambar di sini</p>
+                            <p class="text-sm text-gray-500 mt-1">PNG, JPG, atau JPEG (Maks. 5MB)</p>
+                        </label>
+                        <input id="file-upload" type="file" class="hidden" accept="image/png, image/jpeg">
+                    </div>
+                    
+                    <div id="image-preview-wrapper" class="hidden mt-6 text-center">
+                        <p id="status-text" class="mb-4 font-medium text-lg text-gray-700">Memproses Gambar...</p>
+                        <div id="loader" class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mx-auto mb-4"></div>
+                        <img id="image-preview" src="" alt="Pratinjau KK" class="max-w-xl mx-auto rounded-lg shadow-md">
+                    </div>
+                </div>
+
+                <div id="error-box" class="hidden mt-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
+                    <p class="font-bold">Terjadi Kesalahan</p>
+                    <p id="error-message">Pesan error akan muncul di sini.</p>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section" class="hidden mt-8">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+                         <h2 class="text-2xl font-bold text-gray-800">Data Kartu Keluarga</h2>
+                         <div class="mt-4 sm:mt-0 flex gap-4">
+                            <button id="export-csv" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                               <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.905 3.079V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>
+                               Ekspor ke CSV
+                            </button>
+                            <button id="clear-data" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                               <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-1.157.04-2.26.294-3.235.728A.75.75 0 002 5.67v9.58a.75.75 0 00.765.75c.975-.434 2.078-.688 3.235-.728v.443A2.75 2.75 0 008.75 18h7.5A2.75 2.75 0 0019 15.25V4.75A2.75 2.75 0 0016.25 2H8.75zm0 1.5h7.5a1.25 1.25 0 011.25 1.25v10.5a1.25 1.25 0 01-1.25 1.25h-7.5a1.25 1.25 0 01-1.25-1.25V3.75A1.25 1.25 0 018.75 2.5z" clip-rule="evenodd" /><path d="M8.25 6.5a.75.75 0 01.75-.75h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75zM8.25 9.5a.75.75 0 01.75-.75h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75zM8.25 12.5a.75.75 0 01.75-.75h4a.75.75 0 010 1.5h-4a.75.75 0 01-.75-.75z" /></svg>
+                               Mulai Baru
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- KK Header Details -->
+                    <div id="kk-details" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 text-sm bg-gray-50 p-4 rounded-lg mb-6">
+                        <!-- KK details will be populated here -->
+                    </div>
+
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Daftar Anggota Keluarga</h3>
+                    <div class="overflow-x-auto bg-white rounded-lg border">
+                        <table id="results-table" class="w-full text-left text-sm">
+                            <thead class="bg-gray-100">
+                                <!-- Headers will be populated by JS -->
+                            </thead>
+                            <tbody id="results-body">
+                                <!-- Data rows will be inserted here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="text-center mt-8">
+            <p class="text-sm text-gray-500">@admintanamanpglestari</p>
+        </footer>
+    </div>
+    
+    <script type="module">
+        // --- DOM Element References ---
+        const fileUpload = document.getElementById('file-upload');
+        const uploadArea = document.getElementById('upload-area');
+        const uploadContainer = document.getElementById('upload-container');
+        const imagePreviewWrapper = document.getElementById('image-preview-wrapper');
+        const imagePreview = document.getElementById('image-preview');
+        const statusText = document.getElementById('status-text');
+        const loader = document.getElementById('loader');
+        const errorBox = document.getElementById('error-box');
+        const errorMessage = document.getElementById('error-message');
+        const resultsSection = document.getElementById('results-section');
+        const kkDetailsDiv = document.getElementById('kk-details');
+        const resultsTable = document.getElementById('results-table');
+        const resultsBody = document.getElementById('results-body');
+        const exportCsvButton = document.getElementById('export-csv');
+        const clearDataButton = document.getElementById('clear-data');
+
+        // --- State ---
+        let extractedKkData = null;
+        const memberTableHeaders = ["No", "NamaLengkap", "NIK", "JenisKelamin", "TempatLahir", "TanggalLahir", "Agama", "Pendidikan", "JenisPekerjaan", "StatusPerkawinan", "StatusHubunganDalamKeluarga", "Kewarganegaraan", "NamaAyah", "NamaIbu"];
+
+        // --- Event Listeners ---
+        fileUpload.addEventListener('change', handleFileSelect);
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, preventDefaults, false);
+        });
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('bg-gray-100', 'border-indigo-600'), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('bg-gray-100', 'border-indigo-600'), false);
+        });
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        exportCsvButton.addEventListener('click', exportToCsv);
+        clearDataButton.addEventListener('click', clearAllData);
+
+        // --- Core Functions ---
+        
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            if (files.length) {
+                fileUpload.files = files;
+                handleFileSelect({ target: fileUpload });
+            }
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!['image/jpeg', 'image/png'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                showError('File tidak valid. Gunakan PNG/JPG (Maks 5MB).');
+                return;
+            }
+
+            clearAllData(false); // Clear previous data without confirmation
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                hideError();
+                uploadArea.classList.add('hidden');
+                imagePreview.src = e.target.result;
+                imagePreviewWrapper.classList.remove('hidden');
+                statusText.textContent = "Menganalisis data dari KK...";
+
+                const base64Data = e.target.result.split(',')[1];
+                extractKkData(base64Data);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function extractKkData(base64ImageData) {
+            const prompt = `
+                Anda adalah sistem OCR yang sangat akurat untuk Kartu Keluarga (KK) Indonesia. Tugas Anda adalah mengekstrak seluruh informasi dari gambar KK dan menyusunnya dalam format JSON.
+
+                JSON harus memiliki struktur berikut:
+                1.  Satu objek utama yang berisi detail KK: "NamaKepalaKeluarga", "Alamat", "RTRW", "KelDesa", "Kecamatan", "KabupatenKota", "KodePos", "Provinsi", "NoKK", "TanggalDikeluarkan".
+                2.  Di dalam objek utama, ada sebuah array bernama "AnggotaKeluarga".
+                3.  Setiap elemen dalam array "AnggotaKeluarga" adalah sebuah objek yang mewakili satu anggota keluarga dan berisi kunci-kunci berikut, sesuai dengan kolom tabel di KK: "No", "NamaLengkap", "NIK", "JenisKelamin", "TempatLahir", "TanggalLahir", "Agama", "Pendidikan", "JenisPekerjaan", "StatusPerkawinan", "StatusHubunganDalamKeluarga", "Kewarganegaraan", "NoPaspor", "NoKITAP", "NamaAyah", "NamaIbu".
+
+                Aturan Penting:
+                - Jika sebuah kolom atau data tidak ada (misalnya No. Paspor), gunakan nilai null atau string kosong.
+                - Pastikan NIK diekstrak sebagai string.
+                - Sangat Penting: Jika kualitas gambar terlalu buruk, buram, atau tidak terbaca sehingga Anda tidak yakin dengan hasilnya, jangan mencoba menebak. Alih-alih menghasilkan data yang salah, kembalikan objek JSON dengan satu kunci "error" dan nilai "Kualitas gambar tidak cukup baik untuk ekstraksi data yang akurat."
+                - Hasilkan HANYA format JSON yang valid tanpa teks tambahan.
+            `;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/jpeg", data: base64ImageData } }
+                    ]
+                }],
+            };
+
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+                if (!response.ok) {
+                     const errorData = await response.json();
+                     throw new Error(errorData.error.message || 'Respons jaringan tidak baik-baik saja.');
+                }
+                
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0) {
+                    const contentPart = result.candidates[0].content.parts[0];
+                    let rawText = contentPart.text.trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+                    
+                    const jsonData = JSON.parse(rawText);
+
+                    // Check for the custom error message from the AI
+                    if (jsonData.error) {
+                        throw new Error(jsonData.error);
+                    }
+                    
+                    extractedKkData = jsonData;
+                    displayResults();
+                } else {
+                    throw new Error("Tidak ada konten yang valid ditemukan dalam respons AI.");
+                }
+
+            } catch (error) {
+                console.error("Error processing KK:", error);
+                showError(error.message);
+            } finally {
+                uploadArea.classList.remove('hidden');
+                imagePreviewWrapper.classList.add('hidden');
+                fileUpload.value = '';
+            }
+        }
+        
+        function displayResults() {
+            if (!extractedKkData) return;
+
+            // Display KK Header Details
+            kkDetailsDiv.innerHTML = '';
+            const kkInfo = {
+                "No. KK": extractedKkData.NoKK,
+                "Kepala Keluarga": extractedKkData.NamaKepalaKeluarga,
+                "Alamat": extractedKkData.Alamat,
+                "RT/RW": extractedKkData.RTRW,
+                "Kel/Desa": extractedKkData.KelDesa,
+                "Kecamatan": extractedKkData.Kecamatan,
+                "Kab/Kota": extractedKkData.KabupatenKota,
+                "Provinsi": extractedKkData.Provinsi,
+                "Kode Pos": extractedKkData.KodePos,
+                "Tgl Dikeluarkan": extractedKkData.TanggalDikeluarkan,
+            };
+
+            for (const [key, value] of Object.entries(kkInfo)) {
+                if(value){
+                    const detailElement = document.createElement('div');
+                    detailElement.innerHTML = `<span class="font-semibold text-gray-600">${key}:</span> <span class="text-gray-800">${value}</span>`;
+                    kkDetailsDiv.appendChild(detailElement);
+                }
+            }
+            
+            // Display Family Members Table
+            const thead = resultsTable.querySelector('thead');
+            thead.innerHTML = ''; // Clear header
+            const headerRow = document.createElement('tr');
+            const headerMapping = { "No": "No.", "NamaLengkap": "Nama Lengkap", "NIK": "NIK", "JenisKelamin": "L/P", "TempatLahir": "Tempat Lahir", "TanggalLahir": "Tgl Lahir", "Agama": "Agama", "Pendidikan": "Pendidikan", "JenisPekerjaan": "Pekerjaan", "StatusPerkawinan": "Status Kawin", "StatusHubunganDalamKeluarga": "Status Hub. Keluarga", "Kewarganegaraan": "Kewarganegaraan", "NamaAyah": "Nama Ayah", "NamaIbu": "Nama Ibu" };
+            memberTableHeaders.forEach(headerKey => {
+                const th = document.createElement('th');
+                th.textContent = headerMapping[headerKey] || headerKey;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            
+            resultsBody.innerHTML = ''; // Clear previous results
+            (extractedKkData.AnggotaKeluarga || []).forEach((member) => {
+                const row = document.createElement('tr');
+                memberTableHeaders.forEach(headerKey => {
+                    const td = document.createElement('td');
+                    td.textContent = member[headerKey] || '-';
+                    row.appendChild(td);
+                });
+                resultsBody.appendChild(row);
+            });
+
+            resultsSection.classList.remove('hidden');
+        }
+
+        function exportToCsv() {
+            if (!extractedKkData || !extractedKkData.AnggotaKeluarga || extractedKkData.AnggotaKeluarga.length === 0) {
+                alert("Tidak ada data untuk diekspor.");
+                return;
+            }
+            
+            const kkInfoForCsv = {
+                NoKK: extractedKkData.NoKK || '',
+                NamaKepalaKeluarga: extractedKkData.NamaKepalaKeluarga || '',
+                Alamat: extractedKkData.Alamat || '',
+                RTRW: extractedKkData.RTRW || '',
+                KelDesa: extractedKkData.KelDesa || '',
+                Kecamatan: extractedKkData.Kecamatan || '',
+                KabupatenKota: extractedKkData.KabupatenKota || '',
+                Provinsi: extractedKkData.Provinsi || '',
+            };
+
+            const memberHeaders = Object.keys(extractedKkData.AnggotaKeluarga[0]);
+            const mainHeaders = Object.keys(kkInfoForCsv);
+            const allHeaders = [...mainHeaders, ...memberHeaders];
+
+            const rows = extractedKkData.AnggotaKeluarga.map(member => {
+                const memberValues = memberHeaders.map(header => member[header] || '');
+                const mainValues = mainHeaders.map(header => kkInfoForCsv[header] || '');
+                
+                const combinedData = [...mainValues, ...memberValues].map(value => {
+                    const strVal = String(value);
+                    return strVal.includes(',') ? `"${strVal.replace(/"/g, '""')}"` : strVal;
+                });
+                return combinedData.join(',');
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + allHeaders.join(',') + "\n" 
+                + rows.join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `data_kk_${kkInfoForCsv.NoKK || 'export'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function clearAllData(withConfirm = true) {
+            const doClear = () => {
+                extractedKkData = null;
+                resultsBody.innerHTML = '';
+                kkDetailsDiv.innerHTML = '';
+                resultsSection.classList.add('hidden');
+            };
+
+            if (withConfirm) {
+                if (confirm("Apakah Anda yakin ingin menghapus data KK ini?")) {
+                    doClear();
+                }
+            } else {
+                doClear();
+            }
+        }
+        
+        // --- UI Helper Functions ---
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorBox.classList.remove('hidden');
+            uploadArea.classList.remove('hidden');
+            imagePreviewWrapper.classList.add('hidden');
+            fileUpload.value = '';
+        }
+
+        function hideError() {
+            errorBox.classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
