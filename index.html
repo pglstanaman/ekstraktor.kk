@@ -47,6 +47,11 @@
             50% { top: 88%; opacity: 1; }
             100% { top: 8%; opacity: 0.5; }
         }
+        #confirm-modal {
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -144,6 +149,18 @@
         </footer>
     </div>
     
+    <!-- Custom Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
+            <h3 class="text-lg font-bold text-gray-900 mb-2">Konfirmasi</h3>
+            <p class="text-gray-600 mb-6">Apakah Anda yakin ingin menghapus data KK ini?</p>
+            <div class="flex justify-end gap-4">
+                <button id="modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         // --- DOM Element References ---
         const fileUpload = document.getElementById('file-upload');
@@ -161,6 +178,10 @@
         const resultsBody = document.getElementById('results-body');
         const exportCsvButton = document.getElementById('export-csv');
         const clearDataButton = document.getElementById('clear-data');
+        const confirmModal = document.getElementById('confirm-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalCancelButton = document.getElementById('modal-cancel');
+        const modalConfirmButton = document.getElementById('modal-confirm');
 
         // --- State ---
         let extractedKkData = null;
@@ -181,7 +202,13 @@
         uploadArea.addEventListener('drop', handleDrop, false);
 
         exportCsvButton.addEventListener('click', exportToCsv);
-        clearDataButton.addEventListener('click', clearAllData);
+        clearDataButton.addEventListener('click', showClearDataModal);
+        modalCancelButton.addEventListener('click', hideClearDataModal);
+        modalConfirmButton.addEventListener('click', () => {
+            clearAllData();
+            hideClearDataModal();
+        });
+
 
         // --- Core Functions ---
         
@@ -208,7 +235,10 @@
                 return;
             }
 
-            clearAllData(false); // Clear previous data without confirmation
+            // Clear previous data without confirmation when a new file is selected
+            if(extractedKkData) {
+                clearAllData();
+            }
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -251,7 +281,9 @@
             };
 
             try {
-                const apiKey = "";
+                // PENTING: Ganti dengan Kunci API Anda sendiri agar berfungsi di GitHub
+                const apiKey = "AIzaSyCWLcn-bfU56FeXmY5RgJhFA9Gxf07Ky24";
+                
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -269,7 +301,6 @@
                     
                     const jsonData = JSON.parse(rawText);
 
-                    // Check for the custom error message from the AI
                     if (jsonData.error) {
                         throw new Error(jsonData.error);
                     }
@@ -282,7 +313,17 @@
 
             } catch (error) {
                 console.error("Error processing KK:", error);
-                showError(error.message);
+                 let displayMessage = `Terjadi kesalahan: ${error.message}.`;
+                if (String(error.message).includes("API key not valid")) {
+                    displayMessage = "Galat: Kunci API tidak valid. Pastikan kunci yang Anda masukkan di dalam kode sudah benar.";
+                } else if (String(error.message).includes("permission")) {
+                    displayMessage = "Galat: Proyek Anda tidak memiliki izin. Pastikan 'Generative Language API' sudah diaktifkan di Google Cloud Console untuk proyek Anda.";
+                } else if (String(error.message).includes("Quota exceeded")) {
+                    displayMessage = "Galat: Kuota permintaan Anda telah habis. Silakan periksa penggunaan Anda di Google Cloud Console.";
+                } else if (String(error.message).includes("billing")) {
+                    displayMessage = "Galat: Masalah penagihan (billing). Pastikan akun penagihan sudah terhubung dan aktif untuk proyek Anda di Google Cloud.";
+                }
+                showError(displayMessage);
             } finally {
                 uploadArea.classList.remove('hidden');
                 imagePreviewWrapper.classList.add('hidden');
@@ -344,6 +385,7 @@
 
         function exportToCsv() {
             if (!extractedKkData || !extractedKkData.AnggotaKeluarga || extractedKkData.AnggotaKeluarga.length === 0) {
+                // Menggunakan pop-up kustom, tetapi untuk notifikasi sederhana kita bisa pakai yang lama.
                 alert("Tidak ada data untuk diekspor.");
                 return;
             }
@@ -387,22 +429,29 @@
             document.body.removeChild(link);
         }
         
-        function clearAllData(withConfirm = true) {
-            const doClear = () => {
-                extractedKkData = null;
-                resultsBody.innerHTML = '';
-                kkDetailsDiv.innerHTML = '';
-                resultsSection.classList.add('hidden');
-            };
-
-            if (withConfirm) {
-                if (confirm("Apakah Anda yakin ingin menghapus data KK ini?")) {
-                    doClear();
-                }
-            } else {
-                doClear();
-            }
+        function showClearDataModal() {
+            if (!extractedKkData) return;
+            confirmModal.style.display = 'flex';
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
         }
+
+        function hideClearDataModal() {
+            modalContent.classList.add('scale-95', 'opacity-0');
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            setTimeout(() => {
+                confirmModal.style.display = 'none';
+            }, 300); // Wait for transition to finish
+        }
+
+        function clearAllData() {
+            extractedKkData = null;
+            resultsBody.innerHTML = '';
+            kkDetailsDiv.innerHTML = '';
+            resultsSection.classList.add('hidden');
+        };
         
         // --- UI Helper Functions ---
         function showError(message) {
